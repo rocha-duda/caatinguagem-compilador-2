@@ -14,12 +14,10 @@ public class AnalisadorLexico {
         this.tabelaSimbolos = tabelaSimbolos;
     }
 
-    // função para pular os espaços em branco
-
     private void pularEspacos() {
         while (!leitor.ehEOF()) {
-            char c = leitor.olhar();
-            if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+            char caractere = leitor.olhar();
+            if (caractere == ' ' || caractere == '\t' || caractere == '\r' || caractere == '\n') {
                 leitor.lerCaractere();
             } else {
                 break;
@@ -27,18 +25,16 @@ public class AnalisadorLexico {
         }
     }
 
-    // função para ler identificador ou símbolo reservado
     private Token lerIdentOuReservado(int linhaInicio, int colunaInicio) {
-
-        StringBuilder sb = new StringBuilder();
-        int caracPre = 0;
+        StringBuilder buffer = new StringBuilder();
+        int caracteresLidos = 0;
 
         while (!leitor.ehEOF()) {
-            char c = leitor.olhar();
-            if (Character.isLetterOrDigit(c) || c == '_') {
-                caracPre++;
-                if (sb.length() < TAM_MAX_LEXEMA) {
-                    sb.append(Character.toUpperCase(c));
+            char caractere = leitor.olhar();
+            if (Character.isLetterOrDigit(caractere) || caractere == '_') {
+                caracteresLidos++;
+                if (buffer.length() < TAM_MAX_LEXEMA) {
+                    buffer.append(Character.toUpperCase(caractere));
                 }
                 leitor.lerCaractere();
             } else {
@@ -46,47 +42,40 @@ public class AnalisadorLexico {
             }
         }
 
-        String lexema = sb.toString();
-        int caracPos = lexema.length();
+        String lexema = buffer.toString();
+        int tamanhoFinal = lexema.length();
 
-        // verifica se é reservado
         if (TabelaReservados.ehReservado(lexema)) {
             TipoToken tipo = TabelaReservados.buscarToken(lexema);
             return new Token(tipo, lexema, linhaInicio, colunaInicio);
         }
 
-        // não é reservado → identificador (entra na tabela de símbolos)
         tabelaSimbolos.registrarSimbolo(
                 TipoToken.IDENTIFIER,
                 lexema,
-                caracPre,
-                caracPos,
+                caracteresLidos,
+                tamanhoFinal,
                 linhaInicio
         );
 
         return new Token(TipoToken.IDENTIFIER, lexema, linhaInicio, colunaInicio);
     }
 
-    // ------------------------------------------------------------------------
-    // NÚMEROS (INT / REAL)
-    // ------------------------------------------------------------------------
-
     private Token lerNumero(int linhaInicio, int colunaInicio) {
-
-        StringBuilder sb = new StringBuilder();
-        boolean temPonto = false;
+        StringBuilder buffer = new StringBuilder();
+        boolean possuiPonto = false;
 
         while (!leitor.ehEOF()) {
-            char c = leitor.olhar();
-            if (Character.isDigit(c)) {
-                if (sb.length() < TAM_MAX_LEXEMA) {
-                    sb.append(c);
+            char caractere = leitor.olhar();
+            if (Character.isDigit(caractere)) {
+                if (buffer.length() < TAM_MAX_LEXEMA) {
+                    buffer.append(caractere);
                 }
                 leitor.lerCaractere();
-            } else if (c == '.' && !temPonto) {
-                temPonto = true;
-                if (sb.length() < TAM_MAX_LEXEMA) {
-                    sb.append(c);
+            } else if (caractere == '.' && !possuiPonto) {
+                possuiPonto = true;
+                if (buffer.length() < TAM_MAX_LEXEMA) {
+                    buffer.append(caractere);
                 }
                 leitor.lerCaractere();
             } else {
@@ -94,82 +83,60 @@ public class AnalisadorLexico {
             }
         }
 
-        String lexema = sb.toString();
+        String lexema = buffer.toString();
 
-        if (temPonto) {
+        if (possuiPonto) {
             return new Token(TipoToken.REAL_CONST, lexema, linhaInicio, colunaInicio);
         } else {
             return new Token(TipoToken.INT_CONST, lexema, linhaInicio, colunaInicio);
         }
     }
 
-
-    // ------------------------------------------------------------------------
-    // STRINGS
-    // ------------------------------------------------------------------------
-
     private Token lerString(int linhaInicio, int colunaInicio) {
-
-        StringBuilder sb = new StringBuilder();
-
-        // consumir a aspa inicial "
+        StringBuilder buffer = new StringBuilder();
         leitor.lerCaractere();
 
         while (!leitor.ehEOF()) {
-            char c = leitor.olhar();
+            char caractere = leitor.olhar();
 
-            if (c == '"') {
-                // fim da string
+            if (caractere == '"') {
                 leitor.lerCaractere();
                 break;
             }
 
-            if (sb.length() < TAM_MAX_LEXEMA) {
-                sb.append(c);
+            if (buffer.length() < TAM_MAX_LEXEMA) {
+                buffer.append(caractere);
             }
 
             leitor.lerCaractere();
         }
 
-        String lexema = sb.toString();
+        String lexema = buffer.toString();
         return new Token(TipoToken.STRING_CONST, lexema, linhaInicio, colunaInicio);
     }
 
-
-    // CHAR
-
     private Token lerChar(int linhaInicio, int colunaInicio) {
-
-        StringBuilder sb = new StringBuilder();
-
-        // consumir a aspa simples de abertura '
+        StringBuilder buffer = new StringBuilder();
         leitor.lerCaractere();
 
-        // tenta ler um caractere de conteúdo
         if (!leitor.ehEOF()) {
-            char c = leitor.olhar();
-            sb.append(c);
+            char caractere = leitor.olhar();
+            buffer.append(caractere);
             leitor.lerCaractere();
         }
 
-        // tenta ler a aspa simples de fechamento
         if (!leitor.ehEOF() && leitor.olhar() == '\'') {
             leitor.lerCaractere();
         }
 
-        String lexema = sb.toString();
+        String lexema = buffer.toString();
         return new Token(TipoToken.CHAR_CONST, lexema, linhaInicio, colunaInicio);
     }
 
-    // operador ou símbolo
-
     private Token lerOperadorOuSimbolo(int linhaInicio, int colunaInicio) {
+        char caractere = leitor.olhar();
 
-        char c = leitor.olhar();
-
-        // vamos consumir pelo menos 1 caractere
-        switch (c) {
-
+        switch (caractere) {
             case '+':
                 leitor.lerCaractere();
                 return new Token(TipoToken.ADICAO, "+", linhaInicio, colunaInicio);
@@ -187,28 +154,23 @@ public class AnalisadorLexico {
                 return new Token(TipoToken.RESTO, "%", linhaInicio, colunaInicio);
 
             case '/': {
-                leitor.lerCaractere(); // consome '/'
+                leitor.lerCaractere();
 
                 if (!leitor.ehEOF()) {
-                    char prox = leitor.olhar();
+                    char proximo = leitor.olhar();
 
-                    // comentário de linha: //...
-                    if (prox == '/') {
-                        // consumir até o fim da linha
+                    if (proximo == '/') {
                         while (!leitor.ehEOF() && leitor.olhar() != '\n') {
                             leitor.lerCaractere();
                         }
-                        // consumir o '\n' se quiser
                         if (!leitor.ehEOF()) {
                             leitor.lerCaractere();
                         }
-                        // depois de pular o comentário, pegar o próximo token
                         return proximoToken();
                     }
 
-                    // comentário de bloco: /* ... */
-                    if (prox == '*') {
-                        leitor.lerCaractere(); // consome '*'
+                    if (proximo == '*') {
+                        leitor.lerCaractere();
                         char anterior = 0;
                         while (!leitor.ehEOF()) {
                             char atual = leitor.lerCaractere();
@@ -217,12 +179,9 @@ public class AnalisadorLexico {
                             }
                             anterior = atual;
                         }
-                        // depois de pular o comentário, pegar o próximo token
                         return proximoToken();
                     }
                 }
-
-                // não era comentário → é operador divisão
                 return new Token(TipoToken.DIVISAO, "/", linhaInicio, colunaInicio);
             }
 
@@ -250,7 +209,6 @@ public class AnalisadorLexico {
                     leitor.lerCaractere();
                     return new Token(TipoToken.IGUALDADE, "==", linhaInicio, colunaInicio);
                 }
-                // se a linguagem não tiver '=' sozinho, pode ser UNKNOWN
                 return new Token(TipoToken.UNKNOWN, "=", linhaInicio, colunaInicio);
             }
 
@@ -313,39 +271,32 @@ public class AnalisadorLexico {
                 return new Token(TipoToken.INTERROGACAO, "?", linhaInicio, colunaInicio);
 
             default:
-                // caractere inválido: descarta e segue
                 leitor.lerCaractere();
-                return new Token(TipoToken.UNKNOWN, String.valueOf(c), linhaInicio, colunaInicio);
+                return new Token(TipoToken.UNKNOWN, String.valueOf(caractere), linhaInicio, colunaInicio);
         }
     }
-    
-    public Token proximoToken() {
 
-        // 1. pular espaços em branco
+    public Token proximoToken() {
         pularEspacos();
 
-        // 2. se chegou no fim do arquivo, devolve EOF
         if (leitor.ehEOF()) {
             return new Token(TipoToken.EOF, "EOF", leitor.getLinha(), leitor.getColuna());
         }
 
-        char c = leitor.olhar();
+        char caractere = leitor.olhar();
         int linhaInicio = leitor.getLinha();
         int colunaInicio = leitor.getColuna();
 
-        // 3. decidir o tipo de token pelo caractere inicial
-        if (Character.isLetter(c)) {
+        if (Character.isLetter(caractere)) {
             return lerIdentOuReservado(linhaInicio, colunaInicio);
-        } else if (Character.isDigit(c)) {
+        } else if (Character.isDigit(caractere)) {
             return lerNumero(linhaInicio, colunaInicio);
-        } else if (c == '"') {
+        } else if (caractere == '"') {
             return lerString(linhaInicio, colunaInicio);
-        } else if (c == '\'') {
+        } else if (caractere == '\'') {
             return lerChar(linhaInicio, colunaInicio);
         } else {
             return lerOperadorOuSimbolo(linhaInicio, colunaInicio);
         }
     }
 }
-
- 
